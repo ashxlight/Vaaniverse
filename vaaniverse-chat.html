@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vaaniverse Chat</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  /* ── HARD RESET: prevent WordPress themes from leaking in ── */
+  #vv-btn,
+  #vv-window,
+  #vv-window *,
+  #vv-btn * {
+    box-sizing: border-box !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    line-height: normal !important;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* BUBBLE BUTTON — z-index max to never be obstructed */
+  #vv-btn {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    background: #111 !important;
+    color: #fff !important;
+    border: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 2147483646 !important;
+    transition: transform 0.2s, background 0.2s !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    text-decoration: none !important;
+    outline: none !important;
+  }
+  #vv-btn:hover { background: #333 !important; transform: scale(1.08) !important; }
+  /* Force SVG fill white — WordPress themes often reset this */
+  #vv-btn svg {
+    width: 26px !important;
+    height: 26px !important;
+    fill: #fff !important;
+    color: #fff !important;
+    display: block !important;
+    pointer-events: none !important;
+  }
+  #vv-btn svg path { fill: #fff !important; }
+
+  /* CHAT WINDOW */
+  #vv-window {
+    position: fixed !important;
+    bottom: 90px !important;
+    right: 24px !important;
+    width: 360px !important;
+    max-height: 540px !important;
+    background: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+    display: none;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 2147483645 !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    font-size: 14px !important;
+    color: #111 !important;
+  }
+  #vv-window.open { display: flex !important; }
+
+  /* HEADER */
+  #vv-header {
+    background: #111 !important;
+    color: #fff !important;
+    padding: 14px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-shrink: 0 !important;
+  }
+  #vv-header .title {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    flex: 1 !important;
+    color: #fff !important;
+    background: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    line-height: 1.3 !important;
+  }
+  #vv-header .subtitle {
+    font-size: 11px !important;
+    color: #aaa !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    border: none !important;
+    line-height: 1.3 !important;
+  }
+  #vv-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  /* NEW CHAT button — explicit overrides so WP themes can't touch it */
+  #vv-newchat-btn {
+    all: unset !important;
+    display: inline-block !important;
+    background: transparent !important;
+    border: 1px solid #555 !important;
+    color: #ccc !important;
+    cursor: pointer !important;
+    font-size: 11px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    font-weight: 500 !important;
+    padding: 3px 10px !important;
+    border-radius: 12px !important;
+    transition: all 0.18s !important;
+    white-space: nowrap !important;
+    line-height: 1.6 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  #vv-newchat-btn:hover {
+    background: #333 !important;
+    color: #fff !important;
+    border-color: #666 !important;
+  }
+
+  #vv-close-btn {
+    all: unset !important;
+    display: inline-block !important;
+    background: none !important;
+    border: none !important;
+    color: #aaa !important;
+    cursor: pointer !important;
+    font-size: 20px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    line-height: 1 !important;
+    padding: 2px 6px !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  #vv-close-btn:hover { color: #fff !important; }
+
+  /* PROGRESS BAR */
+  #vv-progress {
+    padding: 8px 14px 4px !important;
+    background: #f9f9f9 !important;
+    flex-shrink: 0 !important;
+  }
+  #vv-progress-label {
+    font-size: 11px !important;
+    color: #888 !important;
+    margin-bottom: 4px !important;
+    display: block !important;
+  }
+  #vv-progress-track {
+    height: 3px !important;
+    background: #e0e0e0 !important;
+    border-radius: 3px !important;
+    overflow: hidden !important;
+  }
+  #vv-progress-fill {
+    height: 100% !important;
+    background: #111 !important;
+    border-radius: 3px !important;
+    transition: width 0.4s ease !important;
+    width: 0% !important;
+    display: block !important;
+  }
+
+  /* MESSAGES */
+  #vv-messages {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: 14px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    background: #f9f9f9 !important;
+    min-height: 0 !important;
+  }
+  #vv-messages::-webkit-scrollbar { width: 4px; }
+  #vv-messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+  .vv-msg {
+    max-width: 82% !important;
+    padding: 9px 13px !important;
+    border-radius: 12px !important;
+    font-size: 13.5px !important;
+    line-height: 1.5 !important;
+    animation: vvFadeUp 0.25s ease !important;
+    word-break: break-word !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+  }
+  @keyframes vvFadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .vv-msg.bot {
+    background: #111 !important;
+    color: #fff !important;
+    border-bottom-left-radius: 3px !important;
+    align-self: flex-start !important;
+  }
+  .vv-msg.bot a { color: #ffd700 !important; }
+  .vv-msg.user {
+    background: #fff !important;
+    color: #111 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-bottom-right-radius: 3px !important;
+    align-self: flex-end !important;
+  }
+
+  /* TYPING INDICATOR */
+  .vv-typing {
+    display: flex !important;
+    gap: 4px !important;
+    padding: 10px 13px !important;
+    align-self: flex-start !important;
+    background: #111 !important;
+    border-radius: 12px !important;
+    border-bottom-left-radius: 3px !important;
+    animation: vvFadeUp 0.25s ease !important;
+  }
+  .vv-typing span {
+    width: 7px !important; height: 7px !important;
+    background: #fff !important;
+    border-radius: 50% !important;
+    display: inline-block !important;
+    animation: vvBounce 1.1s infinite !important;
+  }
+  .vv-typing span:nth-child(2) { animation-delay: 0.18s !important; }
+  .vv-typing span:nth-child(3) { animation-delay: 0.36s !important; }
+  @keyframes vvBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+  }
+
+  /* CHOICES */
+  #vv-choices {
+    padding: 8px 12px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    background: #f9f9f9 !important;
+    flex-shrink: 0 !important;
+  }
+  .vv-choice {
+    all: unset !important;
+    display: inline-block !important;
+    padding: 7px 13px !important;
+    border: 1.5px solid #111 !important;
+    border-radius: 20px !important;
+    background: #fff !important;
+    color: #111 !important;
+    font-size: 13px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.18s !important;
+    white-space: nowrap !important;
+    line-height: 1.4 !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+  }
+  .vv-choice:hover { background: #111 !important; color: #fff !important; }
+
+  /* INPUT ROW */
+  #vv-input-row {
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    border-top: 1px solid #e8e8e8 !important;
+    background: #fff !important;
+    flex-shrink: 0 !important;
+  }
+  #vv-input {
+    all: unset !important;
+    display: block !important;
+    flex: 1 !important;
+    padding: 9px 13px !important;
+    border: 1.5px solid #ddd !important;
+    border-radius: 22px !important;
+    font-size: 13.5px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    color: #111 !important;
+    background: #fff !important;
+    transition: border-color 0.2s !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  #vv-input::placeholder { color: #aaa !important; opacity: 1 !important; }
+  #vv-input:focus { border-color: #111 !important; outline: none !important; box-shadow: none !important; }
+  #vv-input:disabled { background: #f5f5f5 !important; cursor: not-allowed !important; }
+
+  /* SEND BUTTON — the tricky one; isolate SVG fill completely */
+  #vv-send {
+    all: unset !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    background: #111 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    transition: background 0.18s !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  #vv-send:hover:not(:disabled) { background: #333 !important; }
+  #vv-send:disabled { background: #ccc !important; cursor: not-allowed !important; }
+  /* Force the arrow icon white no matter what the theme says */
+  #vv-send svg {
+    width: 16px !important;
+    height: 16px !important;
+    fill: #fff !important;
+    color: #fff !important;
+    display: block !important;
+    pointer-events: none !important;
+  }
+  #vv-send svg path { fill: #fff !important; }
+
+  /* FOOTER */
+  #vv-footer {
+    text-align: center !important;
+    font-size: 10.5px !important;
+    color: #bbb !important;
+    padding: 5px !important;
+    background: #fff !important;
+    border-top: 1px solid #f0f0f0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  @media (max-width: 400px) {
+    #vv-window { width: calc(100vw - 16px) !important; right: 8px !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CHAT BUTTON -->
+<button id="vv-btn" onclick="toggleChat()" title="Chat with us">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+</button>
+
+<!-- CHAT WINDOW -->
+<div id="vv-window">
+  <div id="vv-header">
+    <div>
+      <div class="title">Customer Support</div>
+      <div class="subtitle">Vaaniverse</div>
+    </div>
+    <div id="vv-header-actions">
+      <button id="vv-newchat-btn" onclick="newChat()" title="Start a new chat">NEW CHAT</button>
+      <button id="vv-close-btn" onclick="toggleChat()">&#8801;</button>
+    </div>
+  </div>
+
+  <div id="vv-progress">
+    <div id="vv-progress-label">Step 0 of 8</div>
+    <div id="vv-progress-track"><div id="vv-progress-fill"></div></div>
+  </div>
+
+  <div id="vv-messages"></div>
+  <div id="vv-choices"></div>
+
+  <div id="vv-input-row">
+    <input id="vv-input" type="text" placeholder="Type here and press enter..." disabled onkeydown="onKey(event)"/>
+    <button id="vv-send" onclick="submitInput()" disabled>
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+  <div id="vv-footer">Powered by Vaaniverse</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG — fill these in before deploying
+// ─────────────────────────────────────────────
+const CFG = {
+  webhookUrl:      'https://hook.eu1.make.com/yrevc45uuonvga6q2anaf4arekjvqcmp',
+  calendlyUrl:     'YOUR_CALENDLY_URL',
+  checklistUrl:    'YOUR_SAAS_CHECKLIST_URL',
+  caseStudiesUrl:  'YOUR_CASE_STUDIES_URL',
+  teamEmail:       'cxo@vaaniverse.com'
+};
+
+// ─────────────────────────────────────────────
+// SUPABASE — live tracking
+// ─────────────────────────────────────────────
+const SB_URL = 'https://fbdfmozeqmjunmhnesbv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZGZtb3plcW1qdW5taG5lc2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNDgxMjAsImV4cCI6MjA5NDgyNDEyMH0.WTz11nlIfEDuwY5SU8IRAHaVZIbkWNbAiE9w5xSwdwM';
+const sbClient = supabase.createClient(SB_URL, SB_KEY);
+let VV_SID = null;
+let VV_PING_TIMER = null;
+
+// Safe UUID — works on file://, http://, https://
+function makeUUID() {
+  try { return crypto.randomUUID(); } catch(e) {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+async function initSession() {
+  try {
+    VV_SID = makeUUID();
+    const { error } = await sbClient.from('chat_sessions').insert({ session_id: VV_SID, step_reached: 0 });
+    if (error) console.warn('VV Supabase insert error:', error.message);
+    else console.log('VV session started:', VV_SID);
+    VV_PING_TIMER = setInterval(pingSession, 30000);
+  } catch(e) { console.warn('VV initSession failed:', e.message); }
+}
+
+async function pingSession() {
+  if (!VV_SID) return;
+  try {
+    await sbClient.from('chat_sessions').update({ last_ping: new Date().toISOString() }).eq('session_id', VV_SID);
+  } catch(e) {}
+}
+
+async function updateSession(data) {
+  if (!VV_SID) return;
+  try {
+    const { error } = await sbClient.from('chat_sessions').update(data).eq('session_id', VV_SID);
+    if (error) console.warn('VV update error:', error.message);
+  } catch(e) { console.warn('VV updateSession failed:', e.message); }
+}
+
+// ─────────────────────────────────────────────
+// VAANIVERSE KNOWLEDGE BASE
+// ─────────────────────────────────────────────
+const KB = {
+  whatWeDo: `Vaaniverse is a Fractional CMO and growth strategy firm. We help SaaS companies and startups build unbeatable market positioning, generate quality leads, and scale revenue — without the cost of a full-time CMO.`,
+
+  services: `Our core services include:
+- Fractional CMO Leadership (strategic marketing without full-time cost)
+- Market Positioning and Go-to-Market Strategy
+- Performance Marketing (Google Ads, Meta Ads, LinkedIn Ads)
+- Brand Development and Content Strategy
+- AI Marketing and Automation
+- Sales Enablement and CRM Setup
+- PR and Media Strategy`,
+
+  packages: {
+    starter: `Growth Starter (Rs. 1,20,000/month) — Best for startups with 1-10 employees. Includes Fractional CMO oversight, social media strategy for 2 platforms, content calendar, monthly reports, and bi-weekly strategy calls.`,
+    accelerator: `Growth Accelerator (Rs. 1,50,000/month) — Our recommended package for scaling businesses. Includes everything in Starter plus paid ads management, 4-5 platform social media, personal branding, sales toolkit, CRM setup, and weekly strategy calls.`,
+    dominator: `Growth Dominator (Rs. 2,10,000/month) — Enterprise-grade for businesses ready to dominate their market. Includes full Fractional CMO engagement, PR and media, influencer marketing, custom AI agent, advanced analytics, and white-glove support.`
+  },
+
+  approach: `We use the Blue Ocean Framework — instead of competing in crowded markets, we help you create uncontested market space. Our 365-Day Guarantee positions your business uniquely so you can command premium pricing without objections.`,
+
+  results: `Our clients have seen: significant lead spikes, category authority shifts, premium positioning, elimination of pricing objections, and ARR growth within two quarters.`,
+
+  contact: `Email: cxo@vaaniverse.com | Phone: +91 6353422903 | Website: vaaniverse.com | Location: Vadodara, Gujarat, India`,
+
+  insights: {
+    'Not enough leads': {
+      'Founder': {
+        'Pre-revenue': `As a founder at the pre-revenue stage struggling with lead generation, focus first on defining your Ideal Customer Profile (ICP) clearly. Vaaniverse helps you build a targeted GTM strategy so every marketing effort brings in the right leads — not just any leads.`,
+        '$10k-$50k': `At the $10k-$50k stage, you need a repeatable lead generation engine. Vaaniverse builds multi-channel strategies combining organic content, LinkedIn outreach, and targeted paid ads to create consistent pipeline flow.`,
+        '$50k+': `At $50k+ revenue, scaling lead generation requires a systematic approach. Vaaniverse implements a full-funnel paid advertising strategy combined with content authority building to generate high-quality MQLs at scale.`
+      },
+      'Marketer': {
+        'Pre-revenue': `For marketers at pre-revenue companies, lead generation starts with sharp positioning. Vaaniverse helps you craft messaging that resonates deeply with your ICP, making every channel more effective from day one.`,
+        '$10k-$50k': `At $10k-$50k, your marketing needs proven lead gen frameworks. Vaaniverse deploys performance marketing on Google and Meta combined with SEO and content strategies to fill your pipeline consistently.`,
+        '$50k+': `At $50k+ with a marketing team, Vaaniverse acts as your strategic Fractional CMO layer — optimizing CAC, improving attribution, and building scalable demand generation systems across all channels.`
+      }
+    },
+    'Weak positioning': {
+      'Founder': {
+        'Pre-revenue': `Positioning is everything at the pre-revenue stage. Vaaniverse uses the Blue Ocean Framework to find your unique market space — so you are not competing, you are creating. We build your brand narrative, messaging hierarchy, and value proposition from the ground up.`,
+        '$10k-$50k': `Weak positioning at $10k-$50k is often why growth stalls. Vaaniverse conducts a full brand audit, redefines your positioning strategy, and rebuilds your messaging so prospects immediately understand why you are the obvious choice.`,
+        '$50k+': `At $50k+, vague positioning costs you premium deals. Vaaniverse repositions your brand to command higher prices, eliminate pricing objections, and establish category leadership in your market.`
+      },
+      'Marketer': {
+        'Pre-revenue': `For marketers, weak positioning means your campaigns underperform no matter the budget. Vaaniverse gives you a clear, differentiated brand story and messaging framework that makes every campaign land harder.`,
+        '$10k-$50k': `At $10k-$50k, positioning drives conversion rates across all channels. Vaaniverse rebuilds your value proposition and messaging architecture so your marketing converts better without spending more.`,
+        '$50k+': `At $50k+, positioning is your competitive moat. Vaaniverse establishes thought leadership, premium brand identity, and category authority so your brand becomes the go-to in your space.`
+      }
+    },
+    'High CAC': {
+      'Founder': {
+        'Pre-revenue': `High CAC before revenue means every test is costly. Vaaniverse helps you identify the lowest CAC channels for your specific ICP early, so you spend only where it works and build a sustainable acquisition model.`,
+        '$10k-$50k': `At $10k-$50k with high CAC, Vaaniverse audits your entire marketing funnel — from ad creative to landing page to onboarding — identifying exactly where cost is leaking and fixing it systematically.`,
+        '$50k+': `At $50k+ revenue, high CAC eats margins fast. Vaaniverse implements advanced attribution modelling, optimizes your paid media mix, and introduces organic growth channels to reduce CAC while maintaining lead volume.`
+      },
+      'Marketer': {
+        'Pre-revenue': `For marketers dealing with high CAC early on, Vaaniverse builds a lean acquisition framework — focusing budget on proven channels and eliminating waste through rapid testing and data-driven optimization.`,
+        '$10k-$50k': `At $10k-$50k, Vaaniverse brings in performance marketing expertise to optimize your Google Ads, Meta Ads, and LinkedIn Ads — reducing CPL, improving ROAS, and building a repeatable low-CAC acquisition engine.`,
+        '$50k+': `At $50k+, Vaaniverse implements full-funnel optimization — combining paid media, content, SEO, and automation — to systematically drive down CAC while scaling revenue.`
+      }
+    }
+  }
+};
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const S = {
+  open: false,
+  started: false,
+  triggered: false,
+  step: null,
+  name: '', email: '', company: '',
+  challenge: '', role: '', stage: '',
+  budget: '', timeline: '',
+  retryCount: 0
+};
+
+// ─────────────────────────────────────────────
+// TRIGGERS: 8s, scroll 30%, exit intent
+// ─────────────────────────────────────────────
+setTimeout(() => { if (!S.triggered) autoTrigger('normal'); }, 8000);
+
+window.addEventListener('scroll', () => {
+  if (S.triggered) return;
+  const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+  if (pct > 0.30) autoTrigger('normal');
+}, { passive: true });
+
+document.addEventListener('mouseleave', e => {
+  if (e.clientY < 5 && !S.triggered) autoTrigger('exit');
+});
+
+function autoTrigger(type) {
+  S.triggered = true;
+  if (!S.open) toggleChat();
+  if (type === 'exit') runStep('exit_intent');
+  else if (!S.started) runStep('greeting');
+}
+
+// ─────────────────────────────────────────────
+// TOGGLE
+// ─────────────────────────────────────────────
+function toggleChat() {
+  S.open = !S.open;
+  document.getElementById('vv-window').classList.toggle('open', S.open);
+  if (S.open && !S.started) runStep('greeting');
+}
+
+// ─────────────────────────────────────────────
+// PROGRESS BAR  (8 steps total)
+// ─────────────────────────────────────────────
+const STEP_MAP = {
+  ask_name: 1, ask_email: 2, ask_company: 3,
+  ask_challenge: 4, ask_role: 5, ask_stage: 6,
+  ask_budget: 7, ask_timeline: 8
+};
+const TOTAL_STEPS = 8;
+
+function updateProgress(step) {
+  const n = STEP_MAP[step];
+  if (!n) return;
+  document.getElementById('vv-progress-label').textContent = `Step ${n} of ${TOTAL_STEPS}`;
+  document.getElementById('vv-progress-fill').style.width = `${Math.round((n / TOTAL_STEPS) * 100)}%`;
+}
+
+// ─────────────────────────────────────────────
+// FLOW STEPS
+// ─────────────────────────────────────────────
+function runStep(step) {
+  S.step = step;
+
+  if (step === 'greeting') {
+    S.started = true;
+    initSession(); // ← start Supabase session tracking
+    botSay([
+      'Hey there! Welcome to Vaaniverse — we help SaaS companies and startups nail their positioning, generate quality leads, and scale revenue without the cost of a full-time CMO. Let me ask you a few quick questions so I can find the best path forward for you!'
+    ], () => runStep('ask_name'));
+  }
+
+  else if (step === 'ask_name') {
+    updateProgress('ask_name');
+    botSay(['First things first — what can I call you?'], enableInput);
+  }
+
+  else if (step === 'ask_email') {
+    updateProgress('ask_email');
+    botSay([`Great to meet you, ${S.name}! What\'s your work email?`], enableInput);
+  }
+
+  else if (step === 'ask_company') {
+    updateProgress('ask_company');
+    botSay(['And which company are you with?'], enableInput);
+  }
+
+  else if (step === 'thanks') {
+    botSay(['Got it! Now tell me a bit about your growth challenges.'], () => runStep('ask_challenge'));
+  }
+
+  else if (step === 'ask_challenge') {
+    updateProgress('ask_challenge');
+    botSay(['What\'s your biggest growth challenge right now?'], () => {
+      showChoices(['Not enough leads', 'Weak positioning', 'High CAC'], choice => {
+        S.challenge = choice;
+        userSay(choice);
+        updateSession({ challenge: choice, step_reached: 4 });
+        runStep('ask_role');
+      });
+    });
+  }
+
+  else if (step === 'ask_role') {
+    updateProgress('ask_role');
+    botSay(['And who am I speaking with today?'], () => {
+      showChoices(['Founder', 'Marketer'], choice => {
+        S.role = choice;
+        userSay(choice);
+        updateSession({ role: choice, step_reached: 5 });
+        runStep('ask_stage');
+      });
+    });
+  }
+
+  else if (step === 'ask_stage') {
+    updateProgress('ask_stage');
+    botSay(['Where is your business at right now?'], () => {
+      showChoices(['Pre-revenue', '$10k-$50k', '$50k+'], choice => {
+        S.stage = choice;
+        userSay(choice);
+        updateSession({ stage: choice, step_reached: 6 });
+        runStep('ask_budget');
+      });
+    });
+  }
+
+  else if (step === 'ask_budget') {
+    updateProgress('ask_budget');
+    botSay(['What\'s your monthly marketing budget range?'], () => {
+      showChoices(['Under 1 Lakh', '1L - 2L', '2L - 5L', '5L+'], choice => {
+        S.budget = choice;
+        userSay(choice);
+        updateSession({ budget: choice, step_reached: 7 });
+        runStep('ask_timeline');
+      });
+    });
+  }
+
+  else if (step === 'ask_timeline') {
+    updateProgress('ask_timeline');
+    botSay(['How soon are you looking to get started?'], () => {
+      showChoices(['Immediately', 'Within a month', 'Just exploring'], choice => {
+        S.timeline = choice;
+        userSay(choice);
+        updateSession({ timeline: choice, step_reached: 8, completed: true });
+        sendWebhook();
+        runStep('insight');
+      });
+    });
+  }
+
+  else if (step === 'insight') {
+    const insight = KB.insights[S.challenge]?.[S.role]?.[S.stage]
+      || `Based on your profile, Vaaniverse can help you overcome ${S.challenge} with a tailored growth strategy. Our Fractional CMO approach is designed specifically for ${S.role}s at the ${S.stage} stage.`;
+    botSay([insight], () => runStep('ask_call'));
+  }
+
+  else if (step === 'ask_call') {
+    botSay(['Ready to map out your growth plan on a free 30-minute strategy call?'], () => {
+      showChoices(['Book Now', 'Maybe Later'], choice => {
+        userSay(choice);
+        if (choice === 'Book Now') runStep('book_call');
+        else runStep('maybe_later');
+      });
+    });
+  }
+
+  else if (step === 'book_call') {
+    const cal = CFG.calendlyUrl && CFG.calendlyUrl !== 'YOUR_CALENDLY_URL'
+      ? `<a href="${CFG.calendlyUrl}" target="_blank" style="color:#ffd700;font-weight:600;">Click here to book your call</a>`
+      : `Please reach us at ${CFG.teamEmail} to schedule your call.`;
+    botSay([`Awesome! ${cal} — looking forward to connecting with you!`]);
+  }
+
+  else if (step === 'maybe_later') {
+    botSay(['No worries at all! We\'ll be in touch soon. Have a great day!']);
+  }
+
+  else if (step === 'exit_intent') {
+    botSay(['Before you go — want our free SaaS Positioning Checklist to take with you?'], () => {
+      showChoices(['Yes, send it!', 'No thanks'], choice => {
+        userSay(choice);
+        if (choice === 'Yes, send it!') {
+          if (!S.email) {
+            botSay(['Sure! What\'s your email so I can send it over?'], enableInput);
+            S.step = 'exit_email';
+          } else {
+            botSay([`Sending it to ${S.email} right now!`]);
+          }
+        } else {
+          botSay(['No problem! Have a wonderful day!']);
+        }
+      });
+    });
+  }
+
+  else if (step === 'exit_email') {
+    // handled via submitInput
+  }
+
+  else if (step === 'retry') {
+    botSay(['Happy to help! You can type your question or type HUMAN to connect with our team directly.']);
+  }
+
+  else if (step === 'connect_agent') {
+    botSay(['Connecting you to a live team member now — hang tight!']);
+  }
+}
+
+// ─────────────────────────────────────────────
+// USER INPUT
+// ─────────────────────────────────────────────
+function enableInput() {
+  const inp = document.getElementById('vv-input');
+  const btn = document.getElementById('vv-send');
+  inp.disabled = false;
+  btn.disabled = false;
+  inp.focus();
+}
+
+function disableInput() {
+  const inp = document.getElementById('vv-input');
+  const btn = document.getElementById('vv-send');
+  inp.disabled = true;
+  btn.disabled = true;
+  inp.value = '';
+}
+
+function onKey(e) { if (e.key === 'Enter') submitInput(); }
+
+function submitInput() {
+  const inp = document.getElementById('vv-input');
+  const val = inp.value.trim();
+  if (!val) return;
+
+  // HUMAN keyword — anywhere in flow
+  if (val.toLowerCase() === 'human') {
+    userSay(val);
+    disableInput();
+    clearChoices();
+    S.retryCount++;
+    if (S.retryCount >= 2) runStep('connect_agent');
+    else runStep('retry');
+    return;
+  }
+
+  // FAQ handling — answer from KB then resume
+  const faqReply = checkFAQ(val);
+  if (faqReply) {
+    userSay(val);
+    disableInput();
+    botSay([faqReply], () => {
+      const cur = S.step;
+      runStep(cur);
+    });
+    return;
+  }
+
+  userSay(val);
+  disableInput();
+
+  if (S.step === 'ask_name') {
+    S.name = val;
+    updateSession({ visitor_name: val, step_reached: 1 });
+    runStep('ask_email');
+  } else if (S.step === 'ask_email') {
+    if (!isValidEmail(val)) {
+      botSay(['Hmm, that doesn\'t look quite right — could you double-check your email?'], enableInput);
+      return;
+    }
+    S.email = val;
+    updateSession({ visitor_email: val, step_reached: 2 });
+    runStep('ask_company');
+  } else if (S.step === 'ask_company') {
+    S.company = val;
+    updateSession({ visitor_company: val, step_reached: 3 });
+    sendWebhook('quick');
+    runStep('thanks');
+  } else if (S.step === 'exit_email') {
+    if (!isValidEmail(val)) {
+      botSay(['That email doesn\'t look right — could you try again?'], enableInput);
+      return;
+    }
+    S.email = val;
+    botSay([`Sending the SaaS Positioning Checklist to ${S.email} now!`]);
+  }
+}
+
+// ─────────────────────────────────────────────
+// FAQ DETECTION
+// ─────────────────────────────────────────────
+function checkFAQ(text) {
+  const t = text.toLowerCase();
+  if (t.includes('what do you do') || t.includes('who are you') || t.includes('about you') || t.includes('tell me about'))
+    return KB.whatWeDo;
+  if (t.includes('service') || t.includes('offer') || t.includes('help'))
+    return KB.services;
+  if (t.includes('price') || t.includes('cost') || t.includes('package') || t.includes('plan'))
+    return `We offer three packages:\n\n${KB.packages.starter}\n\n${KB.packages.accelerator}\n\n${KB.packages.dominator}`;
+  if (t.includes('approach') || t.includes('how do you') || t.includes('method') || t.includes('framework'))
+    return KB.approach;
+  if (t.includes('result') || t.includes('success') || t.includes('case') || t.includes('proven'))
+    return KB.results;
+  if (t.includes('contact') || t.includes('reach') || t.includes('email') || t.includes('phone') || t.includes('location'))
+    return KB.contact;
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// BOT MESSAGES
+// ─────────────────────────────────────────────
+function botSay(msgs, callback, idx = 0) {
+  if (idx >= msgs.length) { if (callback) callback(); return; }
+  const typing = showTyping();
+  const delay = Math.min(msgs[idx].replace(/<[^>]*>/g, '').length * 18, 1400) + 300;
+  setTimeout(() => {
+    typing.remove();
+    addMsg(msgs[idx], 'bot');
+    setTimeout(() => botSay(msgs, callback, idx + 1), 350);
+  }, delay);
+}
+
+function userSay(text) { addMsg(text, 'user'); }
+
+function addMsg(html, who) {
+  const el = document.createElement('div');
+  el.className = `vv-msg ${who}`;
+  el.innerHTML = html;
+  document.getElementById('vv-messages').appendChild(el);
+  scrollBottom();
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'vv-typing';
+  el.innerHTML = '<span></span><span></span><span></span>';
+  document.getElementById('vv-messages').appendChild(el);
+  scrollBottom();
+  return el;
+}
+
+function scrollBottom() {
+  const m = document.getElementById('vv-messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+// ─────────────────────────────────────────────
+// CHOICES
+// ─────────────────────────────────────────────
+function showChoices(options, onClick) {
+  const el = document.getElementById('vv-choices');
+  el.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'vv-choice';
+    btn.textContent = opt;
+    btn.onclick = () => {
+      clearChoices();
+      onClick(opt);
+    };
+    el.appendChild(btn);
+  });
+}
+
+function clearChoices() {
+  document.getElementById('vv-choices').innerHTML = '';
+}
+
+// ─────────────────────────────────────────────
+// WEBHOOK
+// ─────────────────────────────────────────────
+function sendWebhook(type = 'full') {
+  if (!CFG.webhookUrl || CFG.webhookUrl === 'YOUR_MAKE_COM_WEBHOOK_URL') return;
+  const payload = type === 'quick'
+    ? {
+        type: 'NEW LEAD — Basic Info',
+        name: S.name,
+        email: S.email,
+        company: S.company,
+        source: 'Vaaniverse Website Chatbot',
+        timestamp: new Date().toISOString()
+      }
+    : {
+        type: 'FULL LEAD — Complete Details',
+        name: S.name,
+        email: S.email,
+        company: S.company,
+        challenge: S.challenge,
+        role: S.role,
+        stage: S.stage,
+        budget: S.budget,
+        timeline: S.timeline,
+        source: 'Vaaniverse Website Chatbot',
+        timestamp: new Date().toISOString()
+      };
+  fetch(CFG.webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+// NEW CHAT — reset everything and start fresh
+function newChat() {
+  S.started = false;
+  S.step = null;
+  S.name = ''; S.email = ''; S.company = '';
+  S.challenge = ''; S.role = ''; S.stage = '';
+  S.budget = ''; S.timeline = '';
+  S.retryCount = 0;
+  document.getElementById('vv-progress-label').textContent = 'Step 0 of 8';
+  document.getElementById('vv-progress-fill').style.width = '0%';
+  document.getElementById('vv-messages').innerHTML = '';
+  clearChoices();
+  disableInput();
+  runStep('greeting');
+}
+</script>
+</body>
+</html>

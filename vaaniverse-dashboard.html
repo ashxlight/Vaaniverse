@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vaaniverse — Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Big+Shoulders+Text:wght@700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0d0d0f;
+    --card:    #111113;
+    --card2:   #1a1a1c;
+    --border:  #2a2a2e;
+    --header:  #0a0a0b;
+    --text:    #f0f0f2;
+    --muted:   #5a5a62;
+    --green:   #22c55e;
+    --red:     #ef4444;
+    --accent:  #933DC9;
+    --teal:    #A7D8DE;
+    --pink:    #F5A3A3;
+    --peach:   #F8C794;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── LOGIN ── */
+  #vv-login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 40px 36px;
+    width: 340px;
+    text-align: center;
+  }
+  .login-logo {
+    font-size: 26px;
+    font-weight: 800;
+    font-family: 'Big Shoulders Text', Arial, sans-serif;
+    color: #fff;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .login-logo span { color: var(--accent); }
+  .login-sub {
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'Manrope', sans-serif;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box input::placeholder { color: var(--muted); }
+  .login-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.2s;
+  }
+  .login-btn:hover { background: #7a2faa; }
+  .login-err {
+    color: var(--red);
+    font-size: 12px;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+
+  /* ── DASHBOARD ── */
+  #vv-dash { display: none; flex-direction: column; min-height: 100vh; }
+
+  /* HEADER */
+  #vv-header {
+    background: var(--header);
+    border-bottom: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .hdr-logo {
+    font-size: 20px;
+    font-weight: 800;
+    font-family: 'Big Shoulders Text', Arial, sans-serif;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hdr-logo span { color: var(--accent); font-size: 12px; font-weight: 500; }
+  .hdr-right { display: flex; align-items: center; gap: 14px; }
+  .hdr-updated { color: var(--muted); font-size: 11px; }
+  .hdr-logout {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .hdr-logout:hover { background: var(--border); }
+
+  /* MAIN GRID */
+  #vv-main {
+    display: grid;
+    grid-template-columns: 38% 1fr;
+    gap: 14px;
+    padding: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* COLUMNS */
+  .col-left, .col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* CARD */
+  .d-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .d-card-head {
+    padding: 12px 16px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── LIVE VISITORS ── */
+  #live-card { flex: 1; display: flex; flex-direction: column; min-height: 260px; }
+  .live-head {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .live-head-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .live-now-badge {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .live-now-badge::before {
+    content: '';
+    width: 7px; height: 7px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: livePulse 1.5s infinite;
+    display: inline-block;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  #live-body { flex: 1; padding: 12px 16px; overflow-y: auto; }
+  .live-count-big {
+    font-size: 48px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+  .no-live { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+  .live-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .live-row:last-child { border-bottom: none; }
+  .live-dot {
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: livePulse 1.5s infinite;
+  }
+  .live-visitor-name { font-weight: 500; font-size: 13px; flex: 1; color: var(--text); }
+  .live-step-badge {
+    background: var(--card2);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .live-time-ago { font-size: 11px; color: var(--muted); }
+
+  /* ── HISTORY ── */
+  #history-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .history-scroll { flex: 1; overflow-y: auto; max-height: 280px; }
+  #hist-table { width: 100%; border-collapse: collapse; }
+  #hist-table th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--card);
+  }
+  #hist-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  #hist-table tr:last-child td { border-bottom: none; }
+  #hist-table tr:hover td { background: var(--card2); }
+  .hist-vis { display: flex; align-items: center; gap: 7px; }
+  .hist-flag { font-size: 16px; line-height: 1; }
+  .hist-name { color: var(--text); font-weight: 500; }
+  .hist-agent-done {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    background: rgba(34,197,94,0.15);
+    border-radius: 50%;
+    color: var(--green);
+    font-size: 11px;
+  }
+  .hist-agent-none { color: var(--muted); }
+  .hist-time { color: var(--muted); font-size: 11px; }
+
+  /* ── STATS GRID ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .d-stat { padding: 16px; }
+  .stat-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .stat-icon { font-size: 14px; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .stat-big {
+    font-size: 36px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-pct {
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .stat-pct.green { color: var(--green); }
+  .stat-pct.red   { color: var(--red); }
+  .stat-week { font-size: 11px; color: var(--muted); }
+  .stat-week .wk-up { color: var(--green); }
+  .stat-week .wk-dn { color: var(--red); }
+
+  /* Chats card two-column */
+  .chats-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .chats-divider {
+    width: 1px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  /* Reporting card */
+  .rep-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .rep-row:last-child { border-bottom: none; }
+  .rep-label { color: var(--muted); }
+  .rep-val { font-weight: 600; }
+  .rep-val.green { color: var(--green); }
+  .rep-val.red   { color: var(--red); }
+  .d-more {
+    margin-left: auto;
+    color: var(--teal);
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 400;
+  }
+
+  /* ── CHALLENGE BREAKDOWN ── */
+  #challenges-card { padding: 0; }
+  .ch-body { padding: 12px 16px; }
+  .ch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .ch-row:last-child { margin-bottom: 0; }
+  .ch-label { font-size: 12px; color: var(--text); width: 160px; flex-shrink: 0; }
+  .ch-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--card2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ch-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #A7D8DE);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
+  .ch-count { font-size: 12px; color: var(--muted); width: 28px; text-align: right; flex-shrink: 0; }
+  .ch-empty { color: var(--muted); font-size: 12px; padding: 12px 0; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── LEAD POPUP MODAL ── */
+  #vv-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    animation: modalFadeIn 0.2s ease;
+  }
+  #vv-modal-overlay.open { display: flex; }
+  @keyframes modalFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  #vv-modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 420px;
+    max-width: calc(100vw - 32px);
+    animation: modalSlideUp 0.22s ease;
+    overflow: hidden;
+  }
+  @keyframes modalSlideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  .modal-head {
+    background: var(--card2);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-avatar {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+  .modal-head-info { flex: 1; }
+  .modal-name { font-size: 15px; font-weight: 700; color: #fff; }
+  .modal-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .modal-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 20px; cursor: pointer; padding: 4px 8px;
+    line-height: 1; border-radius: 6px; transition: all 0.15s;
+  }
+  .modal-close:hover { background: var(--border); color: var(--text); }
+  .modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 0; }
+  .modal-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-row:last-child { border-bottom: none; }
+  .modal-icon { font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; }
+  .modal-field { font-size: 11px; color: var(--muted); width: 80px; flex-shrink: 0; }
+  .modal-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .modal-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-green { background: rgba(167,216,222,0.2);  color: var(--teal); }
+  .badge-red   { background: rgba(245,163,163,0.2);  color: var(--pink); }
+  .badge-purple{ background: rgba(147,61,201,0.18);  color: #c97df5; }
+  .modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .modal-footer button {
+    padding: 7px 16px;
+    border-radius: 7px;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-close { background: var(--card2); color: var(--muted); border: 1px solid var(--border); }
+  .btn-close:hover { color: var(--text); }
+
+  /* clickable history rows */
+  #hist-table tbody tr { cursor: pointer; transition: background 0.15s; }
+  #hist-table tbody tr:hover td { background: rgba(147,61,201,0.08); }
+
+  @media (max-width: 900px) {
+    #vv-main { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 500px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="vv-login">
+  <div class="login-box">
+    <div class="login-logo">⚡ Vaani<span>verse</span></div>
+    <div class="login-sub">Admin Dashboard</div>
+    <input type="password" id="l-pass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div id="vv-dash">
+
+  <!-- HEADER -->
+  <div id="vv-header">
+    <div class="hdr-logo">⚡ Vaaniverse <span>Admin</span></div>
+    <div class="hdr-right">
+      <span class="hdr-updated" id="hdr-updated">Loading...</span>
+      <button class="hdr-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="vv-main">
+
+    <!-- ── LEFT COLUMN ── -->
+    <div class="col-left">
+
+      <!-- Live Visitors -->
+      <div class="d-card" id="live-card">
+        <div class="live-head">
+          <span class="live-head-title">🔴 Live Visitors</span>
+          <span class="live-now-badge">Live Now</span>
+        </div>
+        <div id="live-body">
+          <div class="live-count-big" id="live-num">0</div>
+          <div id="live-list"><div class="no-live">No active visitors right now</div></div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="d-card" id="history-card">
+        <div class="d-card-head">⏱ History</div>
+        <div class="history-scroll">
+          <table id="hist-table">
+            <thead>
+              <tr>
+                <th>VISITOR</th>
+                <th>AGENT</th>
+                <th>TIME</th>
+              </tr>
+            </thead>
+            <tbody id="hist-body">
+              <tr><td colspan="3" style="text-align:center;color:#5a5a78;padding:20px">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── RIGHT COLUMN ── -->
+    <div class="col-right">
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+
+        <!-- Visitors -->
+        <div class="d-card d-stat">
+          <div class="stat-head"><span class="stat-icon">👥</span> Visitors</div>
+          <div class="stat-label">Today</div>
+          <div class="stat-big" id="vis-today">0</div>
+          <div class="stat-pct" id="vis-pct">— 0.0%</div>
+          <div class="stat-week" id="vis-week">Last 7 days <span class="wk-up">↑ 0</span> <span class="wk-dn">↓ 0</span></div>
+        </div>
+
+        <!-- Chats -->
+        <div class="d-card d-stat">
+          <div class="stat-head"><span class="stat-icon">💬</span> Chats</div>
+          <div class="chats-cols">
+            <div>
+              <div class="stat-label">Answered</div>
+              <div class="stat-big" id="ans-num">0</div>
+              <div class="stat-pct green" id="ans-pct">↗ 0.0%</div>
+            </div>
+            <div>
+              <div class="stat-label">Missed</div>
+              <div class="stat-big" id="mis-num">0</div>
+              <div class="stat-pct red" id="mis-pct">↗ 0.0%</div>
+            </div>
+          </div>
+          <div class="stat-week" id="chats-week">Last 7 days <span class="wk-up">↑ 0</span> <span class="wk-dn">↓ 0</span></div>
+        </div>
+
+        <!-- Page Views -->
+        <div class="d-card d-stat">
+          <div class="stat-head"><span class="stat-icon">👁</span> Page Views</div>
+          <div class="stat-label">Today</div>
+          <div class="stat-big" id="pv-today">0</div>
+          <div class="stat-pct" id="pv-pct">— 0.0%</div>
+          <div class="stat-week" id="pv-week">Last 7 days <span class="wk-up">↑ 0</span> <span class="wk-dn">↓ 0</span></div>
+        </div>
+
+        <!-- Reporting -->
+        <div class="d-card d-stat">
+          <div class="stat-head"><span class="stat-icon">📊</span> Reporting <span class="d-more">More</span></div>
+          <div class="rep-row">
+            <span class="rep-label">Completion Rate</span>
+            <span class="rep-val" id="rep-cr">0.0%</span>
+          </div>
+          <div class="rep-row">
+            <span class="rep-label">Engagement</span>
+            <span class="rep-val" id="rep-eng">0.0 steps</span>
+          </div>
+          <div class="rep-row">
+            <span class="rep-label">Leads Today</span>
+            <span class="rep-val" id="rep-leads">0</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Challenge Breakdown -->
+      <div class="d-card" id="challenges-card">
+        <div class="d-card-head">📣 Top Challenges (Last 7 Days)</div>
+        <div class="ch-body" id="ch-body">
+          <div class="ch-empty">Loading...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ LEAD POPUP MODAL ═══════════════ -->
+<div id="vv-modal-overlay" onclick="handleOverlayClick(event)">
+  <div id="vv-modal">
+    <div class="modal-head">
+      <div class="modal-avatar" id="modal-avatar">?</div>
+      <div class="modal-head-info">
+        <div class="modal-name" id="modal-name">—</div>
+        <div class="modal-meta" id="modal-meta">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn-close" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const SB_URL  = 'https://fbdfmozeqmjunmhnesbv.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZGZtb3plcW1qdW5taG5lc2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNDgxMjAsImV4cCI6MjA5NDgyNDEyMH0.WTz11nlIfEDuwY5SU8IRAHaVZIbkWNbAiE9w5xSwdwM';
+const ADMIN_PASS = 'vaaniverse@2024'; // ← change this to your own password
+
+const db = supabase.createClient(SB_URL, SB_KEY);
+let refreshTimer = null;
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+function doLogin() {
+  const pass = document.getElementById('l-pass').value.trim();
+  if (pass === ADMIN_PASS) {
+    sessionStorage.setItem('vv_auth', '1');
+    document.getElementById('vv-login').style.display = 'none';
+    document.getElementById('vv-dash').style.display  = 'flex';
+    loadAll();
+    startAutoRefresh();
+    subscribeRealtime();
+  } else {
+    document.getElementById('l-err').textContent = 'Incorrect password. Try again.';
+    document.getElementById('l-pass').value = '';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('vv_auth');
+  clearInterval(refreshTimer);
+  document.getElementById('vv-dash').style.display  = 'none';
+  document.getElementById('vv-login').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('l-err').textContent = '';
+}
+
+// ─────────────────────────────────────────────
+// LOAD ALL DATA
+// ─────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const now          = new Date();
+    const todayStart   = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const sevenAgo     = new Date(now - 7  * 864e5).toISOString();
+    const fourteenAgo  = new Date(now - 14 * 864e5).toISOString();
+    const twoMinsAgo   = new Date(now - 2  * 60000).toISOString();
+
+    const [liveRes, todayRes, weekRes, prevRes, histRes] = await Promise.all([
+      db.from('chat_sessions').select('session_id,visitor_name,step_reached,started_at').gte('last_ping', twoMinsAgo),
+      db.from('chat_sessions').select('*').gte('started_at', todayStart),
+      db.from('chat_sessions').select('*').gte('started_at', sevenAgo),
+      db.from('chat_sessions').select('*').gte('started_at', fourteenAgo).lt('started_at', sevenAgo),
+      db.from('chat_sessions').select('*').order('started_at', { ascending: false }).limit(50)
+    ]);
+
+    const live     = liveRes.data  || [];
+    const today    = todayRes.data || [];
+    const week     = weekRes.data  || [];
+    const prev     = prevRes.data  || [];
+    const hist     = histRes.data  || [];
+
+    renderLive(live);
+    renderStats(today, week, prev);
+    renderHistory(hist);
+    renderChallenges(week);
+
+    document.getElementById('hdr-updated').textContent =
+      'Updated ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  } catch(e) {
+    document.getElementById('hdr-updated').textContent = 'Error loading data';
+  }
+}
+
+// ─────────────────────────────────────────────
+// RENDER — LIVE VISITORS
+// ─────────────────────────────────────────────
+function renderLive(live) {
+  document.getElementById('live-num').textContent = live.length;
+  const el = document.getElementById('live-list');
+  if (!live.length) {
+    el.innerHTML = '<div class="no-live">No active visitors right now</div>';
+    return;
+  }
+  el.innerHTML = live.map(s => `
+    <div class="live-row">
+      <div class="live-dot"></div>
+      <span class="live-visitor-name">${esc(s.visitor_name || 'Visitor')}</span>
+      <span class="live-step-badge">Step ${s.step_reached || 0} / 8</span>
+      <span class="live-time-ago">${timeAgo(s.started_at)}</span>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// RENDER — STATS CARDS
+// ─────────────────────────────────────────────
+function renderStats(today, week, prev) {
+  // ── Visitors today
+  const visToday = today.length;
+  const visPrev  = prev.length;
+  setText('vis-today', visToday);
+  setPct('vis-pct', visToday, visPrev);
+  setWeek('vis-week', week.length, prev.length);
+
+  // ── Chats answered / missed (today)
+  const answered    = today.filter(s => s.completed).length;
+  const missed      = today.filter(s => !s.completed && (s.step_reached || 0) > 1).length;
+  const ansWeek     = week.filter(s => s.completed).length;
+  const misWeek     = week.filter(s => !s.completed && (s.step_reached || 0) > 1).length;
+  const ansPrev     = prev.filter(s => s.completed).length;
+  const misPrev     = prev.filter(s => !s.completed && (s.step_reached || 0) > 1).length;
+  setText('ans-num', answered);
+  setText('mis-num', missed);
+  setPct('ans-pct', ansWeek, ansPrev, true);
+  setPct('mis-pct', misWeek, misPrev, false);
+  setWeek('chats-week', ansWeek, misWeek);
+
+  // ── Page views (= total sessions opened today)
+  const pvToday = today.length;
+  const pvPrev  = prev.length;
+  setText('pv-today', pvToday);
+  setPct('pv-pct', pvToday, pvPrev);
+  setWeek('pv-week', week.length, prev.length);
+
+  // ── Reporting
+  const cr  = today.length > 0 ? (answered / today.length * 100).toFixed(1) : '0.0';
+  const avg = today.length > 0
+    ? (today.reduce((a,s) => a + (s.step_reached || 0), 0) / today.length).toFixed(1)
+    : '0.0';
+  const crEl = document.getElementById('rep-cr');
+  crEl.textContent = cr + '%';
+  crEl.className   = 'rep-val ' + (parseFloat(cr) >= 50 ? 'green' : 'red');
+  const engEl = document.getElementById('rep-eng');
+  engEl.textContent = avg + ' steps';
+  engEl.className   = 'rep-val ' + (parseFloat(avg) >= 4 ? 'green' : 'red');
+  setText('rep-leads', answered);
+}
+
+// ─────────────────────────────────────────────
+// RENDER — HISTORY
+// ─────────────────────────────────────────────
+// store sessions globally for modal access
+let allSessions = [];
+
+function renderHistory(hist) {
+  allSessions = hist;
+  const tb = document.getElementById('hist-body');
+  if (!hist.length) {
+    tb.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#5a5a78;padding:20px">No history yet — start chatting!</td></tr>';
+    return;
+  }
+  tb.innerHTML = hist.map((s, i) => `
+    <tr onclick="openModal(${i})" title="Click to view full details">
+      <td>
+        <div class="hist-vis">
+          <span class="hist-flag">🇮🇳</span>
+          <span class="hist-name">${esc(s.visitor_name || '—')}</span>
+        </div>
+      </td>
+      <td>
+        ${s.completed
+          ? '<span class="hist-agent-done">✓</span>'
+          : '<span class="hist-agent-none">—</span>'}
+      </td>
+      <td class="hist-time">${fmtTime(s.started_at)}</td>
+    </tr>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// MODAL — open / close
+// ─────────────────────────────────────────────
+function openModal(idx) {
+  const s = allSessions[idx];
+  if (!s) return;
+
+  // avatar initial
+  const initial = (s.visitor_name || '?')[0].toUpperCase();
+  document.getElementById('modal-avatar').textContent = initial;
+
+  // header
+  document.getElementById('modal-name').textContent = s.visitor_name || 'Unknown Visitor';
+  document.getElementById('modal-meta').textContent =
+    fmtTime(s.started_at) + '  •  Step ' + (s.step_reached || 0) + ' / 8  ' +
+    (s.completed ? '✓ Completed' : '⏳ Incomplete');
+
+  // body rows
+  const rows = [
+    { icon: '📧', field: 'Email',     value: s.visitor_email   || '—' },
+    { icon: '🏢', field: 'Company',   value: s.visitor_company || '—' },
+    { icon: '⚡', field: 'Challenge', value: s.challenge       || '—', badge: 'purple' },
+    { icon: '👔', field: 'Role',      value: s.role            || '—' },
+    { icon: '📈', field: 'Stage',     value: s.stage           || '—' },
+    { icon: '💰', field: 'Budget',    value: s.budget          || '—', badge: 'green' },
+    { icon: '⏱',  field: 'Timeline',  value: s.timeline        || '—' },
+    { icon: '✅', field: 'Status',
+      value: s.completed ? 'Completed' : 'Dropped at step ' + (s.step_reached || 0),
+      badge: s.completed ? 'green' : 'red' }
+  ];
+
+  document.getElementById('modal-body').innerHTML = rows.map(r => `
+    <div class="modal-row">
+      <span class="modal-icon">${r.icon}</span>
+      <span class="modal-field">${r.field}</span>
+      ${r.badge
+        ? `<span class="modal-badge badge-${r.badge}">${esc(r.value)}</span>`
+        : `<span class="modal-value">${esc(r.value)}</span>`}
+    </div>
+  `).join('');
+
+  document.getElementById('vv-modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('vv-modal-overlay').classList.remove('open');
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('vv-modal-overlay')) closeModal();
+}
+
+// close with Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ─────────────────────────────────────────────
+// RENDER — CHALLENGE BREAKDOWN
+// ─────────────────────────────────────────────
+function renderChallenges(week) {
+  const counts = {};
+  week.forEach(s => { if (s.challenge) counts[s.challenge] = (counts[s.challenge] || 0) + 1; });
+  const total = Object.values(counts).reduce((a,b) => a+b, 0) || 1;
+  const el = document.getElementById('ch-body');
+  if (!Object.keys(counts).length) {
+    el.innerHTML = '<div class="ch-empty">No challenge data yet — data appears after first chats</div>';
+    return;
+  }
+  el.innerHTML = Object.entries(counts)
+    .sort((a,b) => b[1] - a[1])
+    .map(([label, count]) => `
+      <div class="ch-row">
+        <span class="ch-label">${esc(label)}</span>
+        <div class="ch-bar-wrap"><div class="ch-bar" style="width:${Math.round(count/total*100)}%"></div></div>
+        <span class="ch-count">${count}</span>
+      </div>
+    `).join('');
+}
+
+// ─────────────────────────────────────────────
+// REALTIME SUBSCRIPTION
+// ─────────────────────────────────────────────
+function subscribeRealtime() {
+  db.channel('dashboard-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_sessions' }, () => loadAll())
+    .subscribe();
+}
+
+// ─────────────────────────────────────────────
+// AUTO REFRESH every 30s
+// ─────────────────────────────────────────────
+function startAutoRefresh() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadAll, 30000);
+}
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function setText(id, val) {
+  document.getElementById(id).textContent = val;
+}
+
+function setPct(id, curr, prev, positiveIsGood = null) {
+  const el  = document.getElementById(id);
+  const pct = prev > 0 ? ((curr - prev) / prev * 100) : 0;
+  const pos = pct >= 0;
+  el.textContent = (pos ? '↗' : '↘') + ' ' + Math.abs(pct).toFixed(1) + '%';
+  if (positiveIsGood === null)   el.className = 'stat-pct ' + (pos ? 'green' : 'red');
+  else if (positiveIsGood)       el.className = 'stat-pct ' + (pos ? 'green' : 'red');
+  else                           el.className = 'stat-pct ' + (pos ? 'red' : 'green');
+}
+
+function setWeek(id, up, dn) {
+  document.getElementById(id).innerHTML =
+    `Last 7 days <span class="wk-up">↑ ${up}</span> <span class="wk-dn">↓ ${dn}</span>`;
+}
+
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (s < 60)   return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  return Math.floor(s/3600) + 'h ago';
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  const day = d.getDate();
+  const mon = d.toLocaleString('en', { month: 'short' });
+  const hh  = String(d.getHours()).padStart(2,'0');
+  const mm  = String(d.getMinutes()).padStart(2,'0');
+  return `${day}/${mon} ${hh}:${mm}`;
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+window.onload = () => {
+  if (sessionStorage.getItem('vv_auth') === '1') {
+    document.getElementById('vv-login').style.display = 'none';
+    document.getElementById('vv-dash').style.display  = 'flex';
+    loadAll();
+    startAutoRefresh();
+    subscribeRealtime();
+  }
+};
+</script>
+</body>
+</html>
