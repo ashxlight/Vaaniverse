@@ -426,9 +426,27 @@ function makeUUID() {
 async function initSession() {
   try {
     VV_SID = makeUUID();
-    const { error } = await sbClient.from('chat_sessions').insert({ session_id: VV_SID, step_reached: 0 });
+
+    // ── Capture IP + Country + City ──────────────────
+    let country_code = 'IN', ip_address = '', city = '';
+    try {
+      const geo = await fetch('https://ipapi.co/json/');
+      const gd  = await geo.json();
+      country_code = gd.country_code || 'IN';
+      ip_address   = gd.ip           || '';
+      city         = gd.city         || '';
+    } catch(e) { console.warn('VV geo lookup failed:', e.message); }
+    // ─────────────────────────────────────────────────
+
+    const { error } = await sbClient.from('chat_sessions').insert({
+      session_id:   VV_SID,
+      step_reached: 0,
+      country_code: country_code,
+      ip_address:   ip_address,
+      city:         city
+    });
     if (error) console.warn('VV Supabase insert error:', error.message);
-    else console.log('VV session started:', VV_SID);
+    else console.log('VV session started:', VV_SID, '|', country_code, city);
     VV_PING_TIMER = setInterval(pingSession, 30000);
   } catch(e) { console.warn('VV initSession failed:', e.message); }
 }

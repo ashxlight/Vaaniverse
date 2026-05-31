@@ -77,8 +77,9 @@
   #hist-table tr:last-child td { border-bottom:none; }
   #hist-table tbody tr { cursor:pointer; }
   #hist-table tbody tr:hover td { background:#fafafa; }
-  .hist-vis { display:flex; align-items:center; gap:6px; }
-  .hist-flag { font-size:14px; }
+  .hist-vis { display:flex; align-items:center; gap:8px; }
+  .hist-flag { display:flex; align-items:center; }
+  .hist-flag img { width:22px; height:16px; border-radius:2px; object-fit:cover; display:block; }
   .hist-name { color:var(--text); font-weight:500; }
   .hist-done { color:var(--green); font-weight:700; }
   .hist-pending { color:var(--muted); }
@@ -314,13 +315,19 @@ function renderStats(today, week, prev) {
 
 let allSessions = [];
 
+// ── FLAG IMAGE — works on ALL platforms including Windows ──
+function flagImg(code) {
+  const c = (code || 'IN').toLowerCase();
+  return `<span class="hist-flag"><img src="https://flagcdn.com/24x18/${c}.png" alt="${c.toUpperCase()}" onerror="this.src='https://flagcdn.com/24x18/un.png'"/></span>`;
+}
+
 function renderHistory(hist) {
   allSessions = hist;
   const tb = document.getElementById('hist-body');
   if (!hist.length) { tb.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px;">No history yet — start chatting!</td></tr>'; return; }
   tb.innerHTML = hist.map((s, i) => `
     <tr onclick="openModal(${i})">
-      <td><div class="hist-vis"><span class="hist-flag">🇮🇳</span><span class="hist-name">IN - ${esc(s.visitor_name || '—')}</span>${s.completed ? ' <span class="hist-done">(✓)</span>' : ''}</div></td>
+      <td><div class="hist-vis">${flagImg(s.country_code || 'IN')}<span class="hist-name">${esc(s.visitor_name || '—')}</span>${s.completed ? ' <span class="hist-done">(✓)</span>' : ''}</div></td>
       <td>${s.completed ? '<span class="hist-done">●</span>' : '<span class="hist-pending">—</span>'}</td>
       <td class="hist-time">${fmtTime(s.started_at)}</td>
     </tr>`).join('');

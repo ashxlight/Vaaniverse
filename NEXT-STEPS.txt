@@ -1,0 +1,282 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VAANIVERSE RAG CHATBOT - STEP-BY-STEP SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PHASE 1: LOCAL TESTING (15 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: Install Ollama
+─────────────────────
+1. Go to: https://ollama.ai
+2. Download for your OS (Mac/Windows/Linux)
+3. Install it
+4. Open Terminal/Command Prompt
+5. Run these commands:
+
+   ollama pull mistral
+   ollama pull nomic-embed-text
+
+   (Wait 5-10 minutes for downloads)
+
+6. Run:
+   ollama serve
+
+   You should see: "Listening on 127.0.0.1:11434"
+   Keep this terminal open ✓
+
+
+STEP 2: Install Python Dependencies
+────────────────────────────────────
+1. Open NEW Terminal/Command Prompt
+2. Navigate to Vaaniverse folder:
+
+   cd C:\Users\Nitu Kesharvani\Desktop\Vaaniverse
+
+3. Install dependencies:
+
+   pip install -r requirements.txt
+
+   (Wait 2-3 minutes)
+
+
+STEP 3: Start Backend Server
+────────────────────────────
+1. In the SAME terminal, run:
+
+   python rag-chatbot-backend.py
+
+2. You should see:
+   * Running on http://127.0.0.1:5000
+
+   Keep this terminal open ✓
+
+
+STEP 4: Test the Chatbot
+─────────────────────────
+1. Open: C:\Users\Nitu Kesharvani\Desktop\Vaaniverse\rag-chatbot-widget.html
+   (Double-click the file)
+
+2. Your browser opens with chat bubble (bottom right)
+
+3. Click bubble
+
+4. Fill form:
+   Name: Your Name
+   Company: Your Company
+   Email: your@email.com
+
+5. Click "Start Chat"
+
+6. Ask questions:
+   - "What are your packages?"
+   - "Tell me about Growth Accelerator"
+   - "What's your pricing?"
+
+7. Bot should answer from your knowledge base ✓
+
+
+VERIFY: Can you see responses?
+If NO:
+  - Check Ollama running in Terminal 1
+  - Check Python running in Terminal 2
+  - Check browser console (F12) for errors
+  - Restart both terminals
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 2: DEPLOY TO PRODUCTION (20 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 5: Create GitHub Repository
+─────────────────────────────────
+1. Go to: https://github.com/signup (create free account if needed)
+
+2. Go to: https://github.com/new
+
+3. Fill:
+   Repository name: vaaniverse-rag-chatbot
+   Description: RAG chatbot for Vaaniverse
+   Public
+   Click "Create repository"
+
+4. Copy your repo URL (looks like: https://github.com/YOUR_USERNAME/vaaniverse-rag-chatbot.git)
+
+
+STEP 6: Push Code to GitHub
+────────────────────────────
+1. Stop Python (Ctrl+C in Terminal 2)
+
+2. In Terminal 2, in Vaaniverse folder:
+
+   git init
+   git add .
+   git commit -m "Initial RAG chatbot commit"
+   git remote add origin https://github.com/YOUR_USERNAME/vaaniverse-rag-chatbot.git
+   git branch -M main
+   git push -u origin main
+
+   (Replace URL with your repo URL)
+
+3. It will ask for GitHub login - enter your username/password ✓
+
+
+STEP 7: Deploy on Railway
+─────────────────────────
+1. Go to: https://railway.app/dashboard
+
+2. Sign up with GitHub (click "Create account")
+
+3. Click "New Project"
+
+4. Click "Deploy from GitHub repo"
+
+5. Find and select: vaaniverse-rag-chatbot
+
+6. Wait 2-3 minutes for deploy to finish
+
+7. Click your project → Settings → Domains
+
+8. Copy your Railway URL (looks like: https://vaaniverse-rag-chatbot.railway.app)
+
+   SAVE THIS URL - you need it next
+
+
+STEP 8: Update Widget with Production URL
+───────────────────────────────────────────
+1. Open: C:\Users\Nitu Kesharvani\Desktop\Vaaniverse\rag-chatbot-widget.html
+   (With text editor, not browser)
+
+2. Find line (around line 315):
+
+   backendUrl: 'http://localhost:5000'
+
+3. Replace with your Railway URL:
+
+   backendUrl: 'https://vaaniverse-rag-chatbot.railway.app'
+
+4. Save file
+
+5. Go back to Terminal 2:
+
+   git add rag-chatbot-widget.html
+   git commit -m "Update production URL"
+   git push
+
+   Railway auto-redeploys ✓
+
+
+STEP 9: Test Production Chatbot
+────────────────────────────────
+1. Open: C:\Users\Nitu Kesharvani\Desktop\Vaaniverse\rag-chatbot-widget.html
+   (In browser)
+
+2. Test chat again - should work exactly same way
+
+3. Now it's using Railway backend, not local! ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 3: INTEGRATE WITH WORDPRESS (10 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION A: SIMPLE IFRAME (EASIEST)
+──────────────────────────────────
+1. Go to: https://vaaniverse.com/wp-admin
+
+2. Create new page OR edit existing one
+
+3. Click "+" button to add block
+
+4. Search and select: "Custom HTML"
+
+5. Copy-paste this:
+
+<iframe
+  src="https://vaaniverse-rag-chatbot.railway.app/rag-chatbot-widget.html"
+  style="max-width: 400px; width: 100%; height: 600px; border: none; border-radius: 12px; display: block; margin: 20px auto;">
+</iframe>
+
+   (Replace URL with YOUR Railway URL)
+
+6. Publish page
+
+7. Visit page → Chatbot appears! ✓
+
+
+OPTION B: WORDPRESS PLUGIN (RECOMMENDED)
+──────────────────────────────────────────
+1. Go to your hosting file manager (Hostinger)
+
+2. Navigate to: wp-content/plugins/
+
+3. Create NEW FOLDER: vaaniverse-rag-chat
+
+4. Upload these files to that folder:
+   - wordpress-integration.php (rename to: vaaniverse-rag-chat.php)
+   - rag-chatbot-widget.html
+
+5. Go to: https://vaaniverse.com/wp-admin/plugins.php
+
+6. Find "Vaaniverse RAG Chat" → Click "Activate"
+
+7. Go to: Settings → Vaaniverse Chat
+
+8. Paste your Railway URL:
+   https://vaaniverse-rag-chatbot.railway.app
+
+9. Check: "Enable Chatbot"
+
+10. Save
+
+11. Chatbot now appears on ALL pages! ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DONE! YOUR CHATBOT IS LIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+What's working now:
+✓ RAG chatbot running on Railway (production)
+✓ Widget on your WordPress site
+✓ Collects Name, Company, Email
+✓ Answers questions from your content
+✓ Sends leads to Make.com webhook
+✓ Completely FREE (no API costs)
+
+What happens when users chat:
+→ They fill form (Name, Company, Email)
+→ Ask questions about services/pricing
+→ Bot answers ONLY from your content (no hallucinations)
+→ "Contact team" if unsure
+→ Lead sent to Make.com automatically
+→ Conversation logged to Supabase
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FUTURE: UPDATE KNOWLEDGE BASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+To add new content (new package, case study, etc):
+
+1. Edit: rag-chatbot-backend.py
+
+2. Find: KB_CONTENT = """
+
+3. Add your new text
+
+4. Save and push:
+   git add rag-chatbot-backend.py
+   git commit -m "Update knowledge"
+   git push
+
+5. Railway auto-redeploys (1-2 mins)
+
+6. Chatbot immediately knows! ✓
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NEED HELP?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Read: RAG-CHATBOT-SETUP.md (full documentation)
+Questions: cxo@vaaniverse.com

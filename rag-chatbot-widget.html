@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vaaniverse RAG Chat</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  /* Hard reset */
+  #vv-rag-btn, #vv-rag-window, #vv-rag-window *, #vv-rag-btn * {
+    box-sizing: border-box !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* BUBBLE BUTTON */
+  #vv-rag-btn {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    background: #111 !important;
+    color: #fff !important;
+    border: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 2147483646 !important;
+    transition: transform 0.2s !important;
+  }
+  #vv-rag-btn:hover { transform: scale(1.08) !important; }
+  #vv-rag-btn svg { width: 26px !important; height: 26px !important; fill: #fff !important; }
+
+  /* CHAT WINDOW */
+  #vv-rag-window {
+    position: fixed !important;
+    bottom: 90px !important;
+    right: 24px !important;
+    width: 360px !important;
+    max-height: 540px !important;
+    background: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+    display: none;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 2147483645 !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    font-size: 14px !important;
+    color: #111 !important;
+  }
+  #vv-rag-window.open { display: flex !important; }
+
+  /* HEADER */
+  #vv-rag-header {
+    background: #111 !important;
+    color: #fff !important;
+    padding: 14px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-shrink: 0 !important;
+  }
+  #vv-rag-header .title { font-size: 15px !important; font-weight: 600 !important; flex: 1 !important; }
+  #vv-rag-header .subtitle { font-size: 11px !important; color: #aaa !important; }
+  #vv-rag-close-btn {
+    all: unset !important;
+    cursor: pointer !important;
+    color: #aaa !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+  }
+  #vv-rag-close-btn:hover { color: #fff !important; }
+
+  /* FORM SECTION */
+  #vv-rag-form-section {
+    padding: 14px 12px !important;
+    background: #f9f9f9 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    flex-shrink: 0 !important;
+  }
+  .vv-rag-form-input {
+    all: unset !important;
+    padding: 9px 13px !important;
+    border: 1.5px solid #ddd !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .vv-rag-form-input::placeholder { color: #aaa !important; opacity: 1 !important; }
+  .vv-rag-form-input:focus { border-color: #111 !important; outline: none !important; }
+  #vv-rag-form-submit {
+    all: unset !important;
+    padding: 9px 13px !important;
+    background: #111 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+  }
+  #vv-rag-form-submit:hover { background: #333 !important; }
+
+  /* MESSAGES */
+  #vv-rag-messages {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding: 14px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    background: #f9f9f9 !important;
+    min-height: 0 !important;
+  }
+  #vv-rag-messages::-webkit-scrollbar { width: 4px; }
+  #vv-rag-messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+  .vv-rag-msg {
+    max-width: 82% !important;
+    padding: 9px 13px !important;
+    border-radius: 12px !important;
+    font-size: 13.5px !important;
+    line-height: 1.5 !important;
+    animation: vvFadeUp 0.25s ease !important;
+    word-break: break-word !important;
+  }
+  @keyframes vvFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .vv-rag-msg.bot {
+    background: #111 !important;
+    color: #fff !important;
+    border-bottom-left-radius: 3px !important;
+    align-self: flex-start !important;
+  }
+  .vv-rag-msg.bot a { color: #ffd700 !important; }
+  .vv-rag-msg.user {
+    background: #fff !important;
+    color: #111 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-bottom-right-radius: 3px !important;
+    align-self: flex-end !important;
+  }
+
+  /* TYPING */
+  .vv-rag-typing {
+    display: flex !important;
+    gap: 4px !important;
+    padding: 10px 13px !important;
+    align-self: flex-start !important;
+    background: #111 !important;
+    border-radius: 12px !important;
+    border-bottom-left-radius: 3px !important;
+  }
+  .vv-rag-typing span {
+    width: 7px !important; height: 7px !important;
+    background: #fff !important;
+    border-radius: 50% !important;
+    animation: vvBounce 1.1s infinite !important;
+  }
+  .vv-rag-typing span:nth-child(2) { animation-delay: 0.18s !important; }
+  .vv-rag-typing span:nth-child(3) { animation-delay: 0.36s !important; }
+  @keyframes vvBounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-5px); }
+  }
+
+  /* INPUT ROW */
+  #vv-rag-input-row {
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    border-top: 1px solid #e8e8e8 !important;
+    background: #fff !important;
+    flex-shrink: 0 !important;
+  }
+  #vv-rag-input {
+    all: unset !important;
+    flex: 1 !important;
+    padding: 9px 13px !important;
+    border: 1.5px solid #ddd !important;
+    border-radius: 22px !important;
+    font-size: 13.5px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    color: #111 !important;
+    background: #fff !important;
+  }
+  #vv-rag-input::placeholder { color: #aaa !important; }
+  #vv-rag-input:focus { border-color: #111 !important; outline: none !important; }
+  #vv-rag-input:disabled { background: #f5f5f5 !important; cursor: not-allowed !important; }
+
+  #vv-rag-send {
+    all: unset !important;
+    width: 36px !important;
+    height: 36px !important;
+    background: #111 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+  #vv-rag-send:hover:not(:disabled) { background: #333 !important; }
+  #vv-rag-send:disabled { background: #ccc !important; }
+  #vv-rag-send svg { width: 16px !important; height: 16px !important; fill: #fff !important; }
+
+  /* FOOTER */
+  #vv-rag-footer {
+    text-align: center !important;
+    font-size: 10.5px !important;
+    color: #bbb !important;
+    padding: 5px !important;
+    background: #fff !important;
+    border-top: 1px solid #f0f0f0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  @media (max-width: 400px) {
+    #vv-rag-window { width: calc(100vw - 16px) !important; right: 8px !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CHAT BUTTON -->
+<button id="vv-rag-btn" onclick="toggleRagChat()" title="Chat with us">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+</button>
+
+<!-- CHAT WINDOW -->
+<div id="vv-rag-window">
+  <!-- HEADER -->
+  <div id="vv-rag-header">
+    <div>
+      <div class="title">Chat with Vaaniverse</div>
+      <div class="subtitle">Ask about our services</div>
+    </div>
+    <button id="vv-rag-close-btn" onclick="toggleRagChat()">&#8801;</button>
+  </div>
+
+  <!-- FORM SECTION (shown initially) -->
+  <div id="vv-rag-form-section">
+    <input id="vv-rag-name" class="vv-rag-form-input" type="text" placeholder="Your name" maxlength="100"/>
+    <input id="vv-rag-company" class="vv-rag-form-input" type="text" placeholder="Company name" maxlength="100"/>
+    <input id="vv-rag-email" class="vv-rag-form-input" type="email" placeholder="Work email" maxlength="100"/>
+    <button id="vv-rag-form-submit" onclick="submitRagForm()">Start Chat</button>
+  </div>
+
+  <!-- MESSAGES AREA (hidden until form submitted) -->
+  <div id="vv-rag-messages" style="display:none;"></div>
+
+  <!-- INPUT ROW (hidden until form submitted) -->
+  <div id="vv-rag-input-row" style="display:none;">
+    <input id="vv-rag-input" type="text" placeholder="Type your question..." disabled onkeydown="onRagKey(event)"/>
+    <button id="vv-rag-send" onclick="submitRagInput()" disabled>
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+
+  <!-- FOOTER -->
+  <div id="vv-rag-footer">Powered by Vaaniverse AI</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const RAG_CONFIG = {
+  backendUrl: 'http://localhost:5000',  // Change to Railway URL in production
+  supabaseUrl: 'https://fbdfmozeqmjunmhnesbv.supabase.co',
+  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZGZtb3plcW1qdW5taG5lc2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNDgxMjAsImV4cCI6MjA5NDgyNDEyMH0.WTz11nlIfEDuwY5SU8IRAHaVZIbkWNbAiE9w5xSwdwM'
+};
+
+const S_RAG = {
+  open: false,
+  submitted: false,
+  name: '',
+  email: '',
+  company: '',
+  sessionId: makeUUID()
+};
+
+function makeUUID() {
+  try { return crypto.randomUUID(); } catch(e) {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+// ─────────────────────────────────────────────
+// TOGGLE
+// ─────────────────────────────────────────────
+function toggleRagChat() {
+  S_RAG.open = !S_RAG.open;
+  document.getElementById('vv-rag-window').classList.toggle('open', S_RAG.open);
+}
+
+// ─────────────────────────────────────────────
+// FORM SUBMISSION
+// ─────────────────────────────────────────────
+function submitRagForm() {
+  const name = document.getElementById('vv-rag-name').value.trim();
+  const company = document.getElementById('vv-rag-company').value.trim();
+  const email = document.getElementById('vv-rag-email').value.trim();
+
+  if (!name || !company || !email) {
+    alert('Please fill in all fields');
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    alert('Please enter a valid email');
+    return;
+  }
+
+  S_RAG.name = name;
+  S_RAG.company = company;
+  S_RAG.email = email;
+  S_RAG.submitted = true;
+
+  // Hide form, show chat
+  document.getElementById('vv-rag-form-section').style.display = 'none';
+  document.getElementById('vv-rag-messages').style.display = 'flex';
+  document.getElementById('vv-rag-input-row').style.display = 'flex';
+  document.getElementById('vv-rag-input').disabled = false;
+  document.getElementById('vv-rag-send').disabled = false;
+  document.getElementById('vv-rag-input').focus();
+
+  // Log lead
+  createLead(name, email, company);
+
+  // Welcome message
+  addRagMsg('Welcome ' + name + '! 👋 I\'m the Vaaniverse AI assistant. Ask me anything about our services, pricing, or how we can help your business grow!', 'bot');
+}
+
+function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+// ─────────────────────────────────────────────
+// CHAT FUNCTIONS
+// ─────────────────────────────────────────────
+function onRagKey(e) { if (e.key === 'Enter') submitRagInput(); }
+
+function submitRagInput() {
+  const inp = document.getElementById('vv-rag-input');
+  const val = inp.value.trim();
+  if (!val) return;
+
+  addRagMsg(val, 'user');
+  inp.value = '';
+  inp.disabled = true;
+  document.getElementById('vv-rag-send').disabled = true;
+
+  // Query RAG backend
+  queryRag(val);
+}
+
+function queryRag(question) {
+  const typing = showRagTyping();
+
+  fetch(RAG_CONFIG.backendUrl + '/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: question,
+      visitor: { name: S_RAG.name, email: S_RAG.email, company: S_RAG.company }
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    typing.remove();
+    addRagMsg(data.response || 'I could not process your question. Please try again.', 'bot');
+    enableRagInput();
+  })
+  .catch(err => {
+    typing.remove();
+    addRagMsg('Sorry, I\'m having trouble connecting. Please contact us at cxo@vaaniverse.com', 'bot');
+    enableRagInput();
+  });
+}
+
+function createLead(name, email, company) {
+  fetch(RAG_CONFIG.backendUrl + '/api/lead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, company })
+  }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────
+function enableRagInput() {
+  const inp = document.getElementById('vv-rag-input');
+  inp.disabled = false;
+  document.getElementById('vv-rag-send').disabled = false;
+  inp.focus();
+}
+
+function addRagMsg(text, who) {
+  const el = document.createElement('div');
+  el.className = 'vv-rag-msg ' + who;
+  el.textContent = text;
+  document.getElementById('vv-rag-messages').appendChild(el);
+  scrollRagBottom();
+}
+
+function showRagTyping() {
+  const el = document.createElement('div');
+  el.className = 'vv-rag-typing';
+  el.innerHTML = '<span></span><span></span><span></span>';
+  document.getElementById('vv-rag-messages').appendChild(el);
+  scrollRagBottom();
+  return el;
+}
+
+function scrollRagBottom() {
+  const m = document.getElementById('vv-rag-messages');
+  m.scrollTop = m.scrollHeight;
+}
+</script>
+</body>
+</html>
